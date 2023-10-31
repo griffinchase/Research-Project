@@ -1,0 +1,63 @@
+import numpy as np
+from scipy.integrate import odeint
+import matplotlib.pyplot as plt
+
+# Generalized ABC Rejection method
+def abc_rejection(data, num_samples, threshold, simulate_model, prior_funcs, distance_func):
+    accepted_samples = []
+    
+    for _ in range(num_samples):
+        params = [prior() for prior in prior_funcs]
+        simulated_data = simulate_model(*params)
+        distance = distance_func(data, simulated_data)
+        
+        if distance < threshold:
+            accepted_samples.append(params)
+    
+    return np.array(accepted_samples)
+
+# SIR model specifics
+    S, I, R = s
+    dS = -(I / Ti) * rzero * S
+    dI = (I / Ti) * ((rzero * S) - 1)
+    dR = I / Ti
+    return [dS, dI, dR]
+
+def simulate_sir(rzero, Ti, s0, t_obs):
+    return odeint(sdot, s0, t_obs, args=(rzero, Ti))
+
+def plot_sir(t, S, I, R):
+    fig, (axS, axI, axR) = plt.subplots(3, 1, figsize=(8, 10))
+
+    axS.plot(t, S, 'b-')
+    axI.plot(t, I, 'r-')
+    axR.plot(t, R, 'g-')
+
+    axS.set_ylabel("Susceptible")
+    axI.set_ylabel("Infectious")
+    axR.set_ylabel("Recovered")
+    axR.set_xlabel("Time (years)")
+    plt.tight_layout()
+    plt.show()
+
+# Priors and distance function specific to the SIR model
+def rzero_prior():
+    return np.random.uniform(14.5, 15.5)
+
+def Ti_prior():
+    return np.random.uniform(7.5, 8.5)
+
+def l2_distance(data1, data2):
+    return np.linalg.norm(data1 - data2)
+
+# Initial conditions and parameters for the SIR model
+S0, I0, R0 = 0.9999, 0.0001, 0
+rzero, Ti = 15.0, 8.0
+s0 = [S0, I0, R0]
+t_max = 30
+t_obs = np.linspace(0, t_max, 1000)
+
+# Simulating the SIR model
+s_obs = simulate_sir(rzero, Ti, s0, t_obs)
+plot_sir(t_obs, s_obs[:, 0], s_obs[:, 1], s_obs[:, 2])
+
