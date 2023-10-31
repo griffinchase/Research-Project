@@ -17,6 +17,7 @@ def abc_rejection(data, num_samples, threshold, simulate_model, prior_funcs, dis
     return np.array(accepted_samples)
 
 # SIR model specifics
+def sdot(s, t, rzero, Ti):
     S, I, R = s
     dS = -(I / Ti) * rzero * S
     dI = (I / Ti) * ((rzero * S) - 1)
