@@ -2,21 +2,6 @@ import numpy as np
 from scipy.integrate import odeint
 import matplotlib.pyplot as plt
 
-# Generalized ABC Rejection method
-def abc_rejection(data, num_samples, threshold, simulate_model, prior_funcs, distance_func):
-    accepted_samples = []
-    
-    for _ in range(num_samples):
-        params = [prior() for prior in prior_funcs]
-        simulated_data = simulate_model(*params)
-        distance = distance_func(data, simulated_data)
-        
-        if distance < threshold:
-            accepted_samples.append(params)
-    
-    return np.array(accepted_samples)
-
-# SIR model specifics
 def sdot(s, t, rzero, Ti):
     S, I, R = s
     dS = -(I / Ti) * rzero * S
@@ -24,41 +9,51 @@ def sdot(s, t, rzero, Ti):
     dR = I / Ti
     return [dS, dI, dR]
 
-def simulate_sir(rzero, Ti, s0, t_obs):
+def simulate_sir(t_obs, s0, rzero, Ti):
     return odeint(sdot, s0, t_obs, args=(rzero, Ti))
 
-def plot_sir(t, S, I, R):
-    fig, (axS, axI, axR) = plt.subplots(3, 1, figsize=(8, 10))
+# General ABC Rejection
+def abc_rejection(data, num_samples, threshold, model_func, prior_func, s0, t_obs):
+    accepted_samples = []
+    for _ in range(num_samples):
+        params_prior = prior_func()
+        simulated_data = model_func(t_obs, s0, *params_prior)
+        distance = np.linalg.norm(data - simulated_data)
+        if distance < threshold:
+            accepted_samples.append(params_prior)
+    return np.array(accepted_samples)
 
-    axS.plot(t, S, 'b-')
-    axI.plot(t, I, 'r-')
-    axR.plot(t, R, 'g-')
+def sir_prior_sample():
+    rzero_prior = np.random.uniform(14.5, 15.5)
+    Ti_prior = np.random.uniform(7.5, 8.5)
+    return rzero_prior, Ti_prior
 
-    axS.set_ylabel("Susceptible")
-    axI.set_ylabel("Infectious")
-    axR.set_ylabel("Recovered")
-    axR.set_xlabel("Time (years)")
-    plt.tight_layout()
-    plt.show()
-
-# Priors and distance function specific to the SIR model
-def rzero_prior():
-    return np.random.uniform(14.5, 15.5)
-
-def Ti_prior():
-    return np.random.uniform(7.5, 8.5)
-
-def l2_distance(data1, data2):
-    return np.linalg.norm(data1 - data2)
-
-# Initial conditions and parameters for the SIR model
+# Initial conditions and parameters
 S0, I0, R0 = 0.9999, 0.0001, 0
-rzero, Ti = 15.0, 8.0
 s0 = [S0, I0, R0]
 t_max = 30
 t_obs = np.linspace(0, t_max, 1000)
+data_observed = simulate_sir(t_obs, s0, 15.0, 8.0)
 
-# Simulating the SIR model
+# ABC Rejection with SIR 
+accepted_params = abc_rejection(data_observed, num_samples=10000, threshold=0.1, model_func=simulate_sir, prior_func=sir_prior_sample, s0=s0, t_obs=t_obs)
+
+# Plotting accepted parameters histograms
+fig, ax = plt.subplots(1, 2, figsize=(12, 5))
+num_bins = 50
+
+ax[0].hist(accepted_params[:, 0], bins=num_bins, color='blue', edgecolor='black')
+ax[0].set_title('Histogram of Accepted rzero Values')
+ax[0].set_xlabel('rzero')
+ax[0].set_ylabel('Frequency')
+
+ax[1].hist(accepted_params[:, 1], bins=num_bins, color='red', edgecolor='black')
+ax[1].set_title('Histogram of Accepted Ti Values')
+ax[1].set_xlabel('Ti')
+ax[1].set_ylabel('Frequency')
+
+plt.tight_layout()
+plt.show()
 s_obs = simulate_sir(rzero, Ti, s0, t_obs)
 plot_sir(t_obs, s_obs[:, 0], s_obs[:, 1], s_obs[:, 2])
 
