@@ -12,13 +12,15 @@ def sdot(s, t, rzero, Ti):
 def simulate_sir(t_obs, s0, rzero, Ti):
     return odeint(sdot, s0, t_obs, args=(rzero, Ti))
 
-# General ABC Rejection
-def abc_rejection(data, num_samples, threshold, model_func, prior_func, s0, t_obs):
+def euclidean_distance(data1, data2):
+    return np.linalg.norm(data1 - data2)
+
+def abc_rejection(data, num_samples, threshold, model_func, prior_func, s0, t_obs, distance_func):
     accepted_samples = []
     for _ in range(num_samples):
         params_prior = prior_func()
         simulated_data = model_func(t_obs, s0, *params_prior)
-        distance = np.linalg.norm(data - simulated_data)
+        distance = distance_func(data, simulated_data)
         if distance < threshold:
             accepted_samples.append(params_prior)
     return np.array(accepted_samples)
@@ -36,7 +38,7 @@ t_obs = np.linspace(0, t_max, 1000)
 data_observed = simulate_sir(t_obs, s0, 15.0, 8.0)
 
 # ABC Rejection with SIR 
-accepted_params = abc_rejection(data_observed, num_samples=10000, threshold=0.1, model_func=simulate_sir, prior_func=sir_prior_sample, s0=s0, t_obs=t_obs)
+accepted_params = abc_rejection(data_observed, num_samples=10000, threshold=0.1, model_func=simulate_sir, prior_func=sir_prior_sample, s0=s0, t_obs=t_obs, distance_func=euclidean_distance)
 
 # Plotting accepted parameters histograms
 fig, ax = plt.subplots(1, 2, figsize=(12, 5))
@@ -54,6 +56,4 @@ ax[1].set_ylabel('Frequency')
 
 plt.tight_layout()
 plt.show()
-s_obs = simulate_sir(rzero, Ti, s0, t_obs)
-plot_sir(t_obs, s_obs[:, 0], s_obs[:, 1], s_obs[:, 2])
 
